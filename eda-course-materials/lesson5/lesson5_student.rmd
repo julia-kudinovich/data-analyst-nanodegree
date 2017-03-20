@@ -1,0 +1,370 @@
+Lesson 5
+========================================================
+
+### Multivariate Data
+Notes:
+
+***
+
+### Moira Perceived Audience Size Colored by Age
+Notes:
+
+***
+
+### Third Qualitative Variable
+Notes:
+
+```{r Third Qualitative Variable}
+ggplot(aes(x = gender, y = age),
+       data = subset(pf, !is.na(gender))) + geom_boxplot() +
+  stat_summary(fun.y = mean, geom='point', shape=4)
+
+ggplot(aes(x = age, y = friend_count),
+       data = subset(pf, !is.na(gender))) + 
+  geom_line(aes(color=gender), stat='summary', fun.y=median)
+#median count is larger for women than men for mostly all ages
+
+
+pf.fc_by_age_gender <- subset(pf, !is.na(gender)) %>%
+  #or instead of subset filter(!is,na(gender)) %>%
+  group_by(age, gender) %>%
+  summarise(mean_friend_count = mean(friend_count),
+            median_friend_count = median(friend_count),
+            n=n()) %>%
+  ungroup() %>%
+  arrange(age)
+  
+head(pf.fc_by_age_gender)
+```
+
+***
+
+### Plotting Conditional Summaries
+Notes:
+
+```{r Plotting Conditional Summaries}
+ggplot(aes(x=age, y=median_friend_count), data=pf.fc_by_age_gender) +
+  geom_line(aes(color = gender))
+
+```
+
+***
+
+### Thinking in Ratios
+Notes: Gender difference is greater for young ages.
+
+***
+
+### Wide and Long Format
+Notes:Long format (many rows, variables we grouped by (male female) are repeated for each year)
+
+***
+
+### Reshaping Data
+Notes:
+
+```{r}
+install.packages('reshape2')
+library(reshape2)
+#dcast for tesult to be a dataframe, acast for array/matrix
+pf.fc_by_age_gender.wide <- dcast(pf.fc_by_age_gender,
+                                  age ~ gender,
+                                  value.var='median_friend_count')
+#or
+pf.fc_by_age_gender.wide <-     subset(pf.fc_by_age_gender[c('age', 'gender', 'median_friend_count')],                   !is.na(gender)) %>% 
+    spread(gender, median_friend_count) %>% 
+    mutate(ratio = male / female) 
+
+head(pf.fc_by_age_gender.wide)
+```
+
+
+***
+
+### Ratio Plot
+Notes:
+
+```{r Ratio Plot}
+ggplot(aes(x=age,y=female/male), data=pf.fc_by_age_gender.wide) +
+  geom_line() +
+  geom_hline(yintercept=1,linetype=2, alpha=0.3)
+#For very young users the median female user has over 2.5 times as many friends as median male user 
+```
+
+***
+
+### Third Quantitative Variable
+Notes:
+
+```{r Third Quantitative Variable}
+pf$year_joined <- floor(2014 - pf$tenure/365)
+```
+
+***
+
+### Cut a Variable
+Notes:
+
+```{r Cut a Variable}
+summary(pf$year_joined)
+
+table(pf$year_joined)
+pf$year_joined.bucket <-cut(pf$year_joined, c(2004,2009, 2011, 2012, 2014))
+table(pf$year_joined.bucket)
+```
+
+***
+
+### Plotting it All Together
+Notes:
+
+```{r Plotting it All Together}
+ggplot(aes(x=age, y=friend_count), data=subset(pf, !is.na(year_joined))) +
+  geom_line(aes(color=year_joined.bucket), stat='summary', fun.y=median)
+```
+
+***
+
+### Plot the Grand Mean
+Notes: Users with longer tenture have higher friend count with exception of older users about 80 and up
+
+```{r Plot the Grand Mean}
+ggplot(aes(x=age, y=friend_count), data=subset(pf, !is.na(year_joined))) +
+  geom_line(aes(color=year_joined.bucket), stat='summary', fun.y=mean) +
+  geom_line(linetype=2, stat='summary', fun.y=mean)
+
+#plotting the grand mean is a reminder that much of the data on this sample is about members of recent
+#cohorts
+
+```
+
+***
+
+### Friending Rate
+Notes:
+
+```{r Friending Rate}
+with(subset(pf, tenure>=1), summary(friend_count/tenure))
+# max is an outlier considering out data since out 3r quartie is 0.57 
+```
+
+***
+
+### Friendships Initiated
+Notes:
+
+What is the median friend rate?
+
+What is the maximum friend rate?
+
+```{r Friendships Initiated}
+ggplot(aes(x=tenure, y=friendships_initiated/tenure), data=subset(pf, !is.na(year_joined) & tenure>=1  )) +
+  geom_line(aes(color=year_joined.bucket), stat='summary', fun.y=mean)
+
+#it apppears that people with more tenure typically initiated less friendships
+
+```
+
+***
+
+### Bias-Variance Tradeoff Revisited
+Notes: A lot of noise in the above grapth since we plot mean of y for every possible tenure x value
+
+```{r Bias-Variance Tradeoff Revisited}
+
+ggplot(aes(x = tenure, y = friendships_initiated / tenure),
+       data = subset(pf, tenure >= 1)) +
+  geom_line(aes(color = year_joined.bucket),
+            stat = 'summary',
+            fun.y = mean)
+
+ggplot(aes(x = 7 * round(tenure / 7), y = friendships_initiated / tenure),
+       data = subset(pf, tenure > 0)) +
+  geom_line(aes(color = year_joined.bucket),
+            stat = "summary",
+            fun.y = mean)
+
+ggplot(aes(x = 30 * round(tenure / 30), y = friendships_initiated / tenure),
+       data = subset(pf, tenure > 0)) +
+  geom_line(aes(color = year_joined.bucket),
+            stat = "summary",
+            fun.y = mean)
+
+#graph with very high bias  byt much less variance
+ggplot(aes(x = 90 * round(tenure / 90), y = friendships_initiated / tenure),
+       data = subset(pf, tenure > 0)) +
+  geom_line(aes(color = year_joined.bucket),
+            stat = "summary",
+            fun.y = mean)
+# as bin size increases we see less noise in the graph. our estimates of the mean are adjusted since we have 
+#more data points for new values of the tenure
+
+ggplot(aes(x = tenure, y = friendships_initiated / tenure),
+       data = subset(pf, tenure >= 1)) +
+  geom_smooth(aes(color = year_joined.bucket))
+# we still see that frienships initiated decline as tenure increases
+
+```
+
+***
+
+### Sean's NFL Fan Sentiment Study
+Notes:
+
+***
+
+### Introducing the Yogurt Data Set
+Notes:
+
+***
+
+### Histograms Revisited
+Notes:
+
+```{r Histograms Revisited}
+yo <-read.csv('yogurt.csv')
+str(yo)
+
+#Change the id from int to a factor
+yo$id<-factor(yo$id)
+str(yo)
+
+qplot(data=yo, x=price) 
+#discreteness, there appear to be prices where there are many observations and no observations
+# in adjacent prices that makes snece because prices are set that applies to many consumers
+
+qplot(data=yo, x=price, binwidth=10) 
+#for very descrete data like this above histogram (with biwidth=10) is very biased model
+
+
+```
+
+***
+
+### Number of Purchases
+Notes: discreteness (notice that 75% percentile is the same as max), 20 discrete unique prices
+
+```{r Number of Purchases}
+summary(yo)
+length(unique(yo$price))
+table(yo$price) #<-- distribution of prices
+
+yo <- transform(yo, all.purchases = strawberry + blueberry + pina.colada + plain + mixed.berry)
+summary(yo$all.purchases)
+
+#alternate version
+yo$all.purchases <- yo$strawberry + yo$blueberry + yo$pina.colada + yo$plain + yo$mixed.berry
+```
+
+***
+
+### Prices over Time
+Notes: discrentenes. Most housholds buy 1-2 yogurts at a time
+
+```{r Prices over Time}
+qplot(x=all.purchases, data=yo, binwidth =1)
+
+ggplot(aes(x=time, y=price), data=yo ) + geom_jitter(alpha=1/4, shape=21)
+#modal of the most common prices seem to increase over. WE also see some lower price points 
+# scattered about the grapth() these maybe to sales or buyer using coupns that bring down prices of yogurt
+```
+
+
+***
+
+### Sampling Observations
+Notes: may be usefull to look into samll sample data in detail so we know what type of within and between household variation we are working with
+
+***
+
+### Looking at Samples of Households
+
+```{r Looking at Sample of Households}
+set.seed(4230)
+sample.ids <-sample(levels(yo$id),16)
+
+ggplot(aes(x=time, y=price), data=subset(yo, id %in% sample.ids)) +
+  facet_wrap(~ id) +
+  geom_line() +
+  geom_point(aes(size = all.purchases), pch=1)
+
+
+#my plot
+set.seed(999)
+sample.ids <-sample(levels(yo$id),16)
+
+ggplot(aes(x=time, y=price), data=subset(yo, id %in% sample.ids)) +
+  facet_wrap(~ id) +
+  geom_line() +
+  geom_point(aes(size = all.purchases), pch=1)
+
+```
+
+***
+
+### The Limits of Cross Sectional Data
+Notes: If we have observations over time we can facet by primary unit ,case or individual  (household)
+
+***
+
+### Many Variables
+Notes:
+
+***
+
+### Scatterplot Matrix
+Notes:
+```{r}
+#install.packages('GGally') 
+library(GGally)
+theme_set(theme_minimal(20))
+
+#set the seed for reproducible results
+set.seed(1836)
+pf_subset <- pf[ , c(2:15)] 
+names(pf_subset)
+ggpairs(pf_subset[sample.int(nrow(pf_subset),100), ], axisLabels = 'internal')
+
+```
+
+***
+
+### Even More Variables
+Notes:
+
+***
+
+### Heat Maps
+Notes:
+
+```{r}
+nci <- read.table("nci.tsv")
+
+#changing the colnames to produce a nicer plot
+colnames(nci) <- c(1:64)
+```
+
+```{r}
+#melt the data to long format
+library(reshape2)
+nci.long.samp <- melt(as.matrix(nci[1:200,]))
+names(nci.long.samp) <- c("gene", "case", "value")
+head(nci.long.samp)
+
+ggplot(aes(y = gene, x = case, fill = value),
+  data = nci.long.samp) +
+  geom_tile() +
+  scale_fill_gradientn(colours = colorRampPalette(c("blue", "red"))(100))
+```
+
+
+***
+
+### Analyzing Three of More Variables
+Reflection:
+
+***
+
+Click **KnitHTML** to see all of your hard work and to have an html
+page of this lesson, your answers, and your notes!
+
