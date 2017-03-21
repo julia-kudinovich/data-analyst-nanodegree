@@ -1,0 +1,20 @@
+SELECT t.scode, p.scode,t.sfirstname,t.slastname FROM 
+	TENANT t
+
+LEFT JOIN PROPERTY p ON p.HMY = t.HPROPERTY
+
+WHERE t.ISTATUS IN (0,3,4)
+	
+UNION ALL
+
+SELECT t.SCODE,t.sunitcode,p.SFIRSTNAME,p.ULASTNAME
+	
+	FROM ROOM r
+		
+		LEFT JOIN TENANT t ON t.HMYPERSON = r.HMYTENANT
+		LEFT JOIN PERSON p ON p.HMY = r.HMYPERSON
+		LEFT JOIN PROPERTY pr ON pr.HMY = t.HPROPERTY
+		
+			WHERE p.UCODE LIKE 'r%'
+				and R.boccUPANT = 0 AND t.ISTATUS IN (0,3,4)
+				

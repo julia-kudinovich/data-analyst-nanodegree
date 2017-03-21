@@ -1,0 +1,232 @@
+//VISTA
+
+//NOTES
+//END NOTES
+
+//Title
+Portfolio Analysis Report
+//End Title
+
+//Select
+select pa.district, pa.market, u.scode property_id, t.scode tenant_id, lh.hmy lease_id,  t.dtsigndate	sign_date, 
+lh.dtleasefrom  lease_start,  lh.dtleaseto  lease_end, u.sstatus   prop_status, u.dtready  dtready,
+'NewLease' renewal_status
+into
+	#comparable
+
+from property p
+inner join unit u 
+      on u.hproperty = p.hmy
+inner join tenant t 
+      on (t.hproperty = p.hmy)
+inner join lease_history lh (nolock)
+      on lh.htent = t.hmyperson
+inner join propattributes pa on pa.hproperty=p.hmy
+
+order by
+  p.scode,
+  t.scode,
+  lh.dtleasefrom
+
+//end select
+
+
+//select
+alter table #comparable
+add tenant_lease integer, property_lease integer
+
+//end select
+
+//select
+declare @prop_id varchar(8)
+DECLARE @tent_id varchar(8)
+DECLARE @leas_id integer
+
+Declare @prop_code varchar(8)
+Declare @tent_code varchar(8)
+
+Declare @prop_lease integer
+Declare @tent_lease integer
+
+Declare @renewal varchar(7)
+
+DECLARE cur_lease CURSOR FOR 
+
+SELECT
+	property_id,
+	tenant_id,
+	lease_id
+from
+	#comparable
+order by
+	property_id,
+	tenant_id,
+	lease_start
+
+OPEN cur_lease  
+
+FETCH NEXT FROM cur_lease INTO @prop_id, @tent_id, @leas_id
+
+set @prop_lease = 1
+set @tent_lease = 1
+
+set @prop_code = @prop_id
+set @tent_code = @tent_id
+
+set @renewal = 'New'
+
+WHILE @@FETCH_STATUS = 0
+BEGIN  
+	
+update #comparable
+set
+		tenant_lease = @tent_lease,
+		property_lease = @prop_lease,
+	        renewal_status = @renewal
+	where
+		property_id  = @prop_id
+		and tenant_id = @tent_id
+		and lease_id = @leas_id
+
+       	FETCH NEXT FROM cur_lease INTO @prop_id, @tent_id, @leas_id
+
+	if @prop_id = @prop_code
+		set @prop_lease = @prop_lease + 1
+	else
+		begin
+		set @prop_code = @prop_id
+		set @tent_code = ''
+		set @prop_lease = 1
+		set @tent_lease = 0
+		end
+
+	if @tent_id = @tent_code
+		set @renewal = 'Renewal'
+	else
+		begin
+		set @tent_code = @tent_id
+		set @tent_lease = @tent_lease + 1
+		set @renewal = 'New'
+		end
+
+END  
+
+CLOSE cur_lease
+
+DEALLOCATE cur_lease
+
+//end select
+
+
+
+//Select 
+select
+market,
+sum((case when renewal_status='New' and sign_date between '2014-01-01' and '2014-01-31' then 1 else 0 end )) ,
+sum((case when renewal_status='New' and sign_date between '2014-02-01' and '2014-02-28' then 1 else 0 end )),
+sum((case when renewal_status='New' and sign_date between '2014-03-01' and '2014-03-31' then 1 else 0 end )),
+sum((case when renewal_status='New' and sign_date between '2014-04-01' and '2014-04-30' then 1 else 0 end )),
+sum((case when renewal_status='New' and sign_date between '2014-05-01' and '2014-05-31' then 1 else 0 end )),
+sum((case when renewal_status='New' and sign_date between '2014-06-01' and '2014-06-30' then 1 else 0 end )),
+sum((case when renewal_status='New' and sign_date between '2014-07-01' and '2014-07-31' then 1 else 0 end )),
+sum((case when renewal_status='New' and sign_date between '2014-08-01' and '2014-08-31' then 1 else 0 end )),
+sum((case when renewal_status='New' and sign_date between '2014-09-01' and '2014-09-30' then 1 else 0 end )),
+sum((case when renewal_status='New' and sign_date>=dateadd(month, -9, getdate()) then 1 else 0 end))/9,
+
+(select max(c) from
+(select market, sUM((CASE when renewal_status='New' and sign_date between '2013-01-01' AND '2013-01-31' THEN 1 ELSE 0 END)) as c from #comparable where market=#comparable.market group by market 
+union all
+select market, SUM((CASE when renewal_status='New' and sign_date between '2013-02-01' AND '2013-02-28' THEN 1 ELSE 0 END))as c from #comparable where market=#comparable.market group by market 
+union all
+select market, SUM((CASE when renewal_status='New' and sign_date between '2013-03-01' AND '2013-03-31' THEN 1 ELSE 0 END))as c from #comparable where market=#comparable.market group by market 
+union all
+select market, SUM((CASE when renewal_status='New' and sign_date between '2013-04-01' AND '2013-04-30' THEN 1 ELSE 0 END))as c from #comparable where market=#comparable.market group by market 
+union all
+select market, SUM((CASE when renewal_status='New' and sign_date between '2013-05-01' AND '2013-05-31' THEN 1 ELSE 0 END))as c from #comparable where market=#comparable.market group by market 
+union all 
+select market, SUM((CASE when renewal_status='New' and sign_date between '2013-06-01' AND '2013-06-30' THEN 1 ELSE 0 END))as c  from #comparable where market=#comparable.market group by market 
+union all
+select market, SUM((CASE when renewal_status='New' and sign_date between '2013-07-01' AND '2013-07-31' THEN 1 ELSE 0 END))as c from #comparable where market=#comparable.market group by market 
+union all
+select market, SUM((CASE when renewal_status='New' and sign_date between '2013-08-01' AND '2013-08-31' THEN 1 ELSE 0 END)) as c from #comparable where market=#comparable.market group by market 
+union all
+select market, SUM((CASE when renewal_status='New' and sign_date between '2013-09-01' AND '2013-09-30' THEN 1 ELSE 0 END)) as c from #comparable where market=#comparable.market group by market 
+union all
+select market, SUM((CASE when renewal_status='New' and sign_date between '2013-10-01' AND '2013-10-31' THEN 1 ELSE 0 END)) as c from #comparable where market=#comparable.market group by market 
+union all
+select market, SUM((CASE when renewal_status='New' and sign_date between '2013-11-01' AND '2013-11-30' THEN 1 ELSE 0 END)) as c from #comparable where market=#comparable.market group by market 
+union all
+select market, SUM((CASE when renewal_status='New' and sign_date between '2013-12-01' AND '2013-12-31' THEN 1 ELSE 0 END)) as c from #comparable where market=#comparable.market group by market)d where market=#comparable.market),
+
+sum((case when prop_status='Vacant Unrented Ready' then 1 else 0 end)),
+sum((case when prop_status='Vacant Unrented Ready' and datediff(day, getdate(), dtready)>90 then 1 else 0 end)),
+
+sum((case when (prop_status='Vacant Unrented Ready'and datediff(day, getdate(), dtready)>90 and property_lease<1)
+or (prop_status not in ('Occupied No Notice' ,'Notice Rented' ,'Vacant Rented Not Ready') and property_lease>0) then 1 else 0 end)),
+
+sum((case when renewal_status='New' and sign_date between '2013-08-01' and '2013-08-31' then 1 else 0 end )),
+
+'construction', 'conversion' ,
+
+sum((case when prop_status in ('Occupied No Notice' ,'Notice Rented' ,'Vacant Rented Not Ready') then 1 else 0 end)),
+
+'Grand Total', 'Occupancy Total',
+
+cast((sum((case when prop_status in ('Occupied No Notice' ,'Notice Rented' ,'Vacant Rented Not Ready') then 1 else 0 end))*1.0/
+(sum((case when prop_status in ('Occupied No Notice' ,'Notice Rented' ,'Vacant Rented Not Ready') then 1 else 0 end)) + sum((case when prop_status='Vacant Unrented Ready' then 1 else 0 end))))*100 as decimal(5,2)),
+
+cast((sum((case when prop_status in ('Occupied No Notice' ,'Notice Rented' ,'Vacant Rented Not Ready') then 1 else 0 end))*1.0/
+(sum((case when prop_status in ('Occupied No Notice' ,'Notice Rented' ,'Vacant Rented Not Ready') then 1 else 0 end)) + sum((case when prop_status='Vacant Unrented Ready' and datediff(day, getdate(), dtready)>90 then 1 else 0 end))))*100 as decimal(5,2)),
+
+cast((sum((case when prop_status in ('Occupied No Notice' ,'Notice Rented' ,'Vacant Rented Not Ready') then 1 else 0 end))*1.0/
+(sum((case when prop_status in ('Occupied No Notice' ,'Notice Rented' ,'Vacant Rented Not Ready') then 1 else 0 end)) + sum((case when (prop_status='Vacant Unrented Ready'and datediff(day, getdate(), dtready)>90 and property_lease<1)
+or (prop_status not in ('Occupied No Notice' ,'Notice Rented' ,'Vacant Rented Not Ready') and property_lease>0) then 1 else 0 end))))*100  as decimal(5,2))
+
+from
+	#comparable
+
+group by market
+order by market
+//End Select 
+
+//Select 
+drop table #comparable
+//End Select
+
+
+
+//Columns
+//Type, Name, Head1, Head2,    Head3,     Head4, Show, Color, Formula, Drill, Key, Width,  Total,
+     T,     ,      ,      ,     ,               Market,    Y,      ,        ,   ,   N,   500,       ,
+     T,     ,      ,      , Leasing Velocity, Jan 2014,    Y,      ,        ,   ,   N,   500,       ,
+     T,     ,      ,      , Leasing Velocity, Feb 2014,    Y,      ,        ,   ,   N,   500,       ,
+     T,     ,      ,      , Leasing Velocity, Mar 2014,    Y,      ,        ,   ,   N,   500,       ,
+     T,     ,      ,      , Leasing Velocity, Apr 2014,    Y,      ,        ,   ,   N,   500,       ,
+     T,     ,      ,      , Leasing Velocity, May 2014,    Y,      ,        ,   ,   N,   500,       ,
+     T,     ,      ,      , Leasing Velocity,June 2014,    Y,      ,        ,   ,   N,   500,       ,
+     T,     ,      ,      , Leasing Velocity,July 2014,    Y,      ,        ,   ,   N,   500,       ,
+     T,     ,      ,      , Leasing Velocity, Aug 2014,    Y,      ,        ,   ,   N,   500,       ,
+     T,     ,      ,      , Leasing Velocity, Sep 2014,    Y,      ,        ,   ,   N,   500,       ,
+     T,     ,      ,      , 9 month ,          average,    Y,      ,        ,   ,   N,   500,       ,
+     T,     ,      ,      , 2013 ,                peak,    Y,      ,        ,   ,   N,   500,       ,
+     T,     ,      ,      , Current  ,      Rent ready,    Y,      ,        ,   ,   N,   500,       ,
+     T,     ,      ,      , Current  ,  Rent ready >90,    Y,      ,        ,   ,   N,   500,       ,
+     T,     ,      ,      , Non-leased  ,   stabilized,    Y,      ,        ,   ,   N,   500,       ,
+     T,     ,      ,      , Aug 2013  ,         leases,    Y,      ,        ,   ,   N,   500,       ,
+     T,     ,      ,      , Sep 2014  ,   construction,    Y,      ,        ,   ,   N,   500,       ,
+     T,     ,      ,      , Sep 2014  ,     conversion,    Y,      ,        ,   ,   N,   500,       ,
+     T,     ,      ,      , Sep 2014  ,         leased,    Y,      ,        ,   ,   N,   500,       ,
+     T,     ,      ,      ,       ,        Grand Total,    Y,      ,        ,   ,   N,   500,       ,
+     T,     ,      ,      ,   ,        Occupancy Total,    Y,      ,        ,   ,   N,   500,       ,
+     T,     ,      ,      ,   ,           Occupancy RR %,  Y,      ,        ,   ,   N,   500,       ,
+     T,     ,      ,      ,   ,     Occupancy 90+ RR %,    Y,      ,        ,   ,   N,   500,       ,
+     T,     ,      ,      ,   , Occupancy stabilized %,    Y,      ,        ,   ,   N,   500,       ,
+//End columns
+
+
+
+
+//Filter
+//Type, DataTyp,     Name,     Caption,      Key,  List,  Val1, Val2, Mandatory, Multi-Type, Title,
+  
+//End Filter

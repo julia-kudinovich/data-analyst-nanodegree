@@ -1,0 +1,61 @@
+//Vista
+
+//Notes
+//End Notes
+
+//Database
+//End Database
+
+//Title
+Eviction Status Change report
+//End Title
+
+//Select 
+Select distinct  t.sunitcode as "Prop ID",t.slastname as "Last Name", t.sfirstname as "First Name", ts.status as "Tenant Status", t.dtmovein as "Move in Date", t.dtmoveout "Move Out Date", 
+(select top 1 dtoccurred from tenant_history where htent=t.hmyperson and sevent like '%Eviction%' order by dtoccurred desc)as "Latest Status Change Date" , 
+(case when (ts.status='Current' and th.sevent='Eviction') then 'Evict to Current'
+when (ts.status='Eviction' and th.sevent='Eviction') then 'Evict to Evicted'
+when (ts.status='Past' and th.sevent='Eviction' and (select top 1 sevent from tenant_history where htent=t.hmyperson and sevent like '%Eviction%' order by dtoccurred desc) like '%Cancel%') then 'Evict to Vacate'
+when (ts.status='Past' and th.sevent='Eviction' and (select top 1 sevent from tenant_history where htent=t.hmyperson and sevent like '%Eviction%' order by dtoccurred desc) not like '%Cancel%') then 'Evict to Evicted'
+end)as "Desposition Status" ,
+
+
+(case when (ts.status='Past' and th.sevent='Eviction' and (select top 1 sevent from tenant_history where htent=t.hmyperson and sevent like '%Eviction%' order by dtoccurred desc) like '%Cancel%')
+or (ts.status='Past' and th.sevent='Eviction' and (select top 1 sevent from tenant_history where htent=t.hmyperson and sevent like '%Eviction%' order by dtoccurred desc) not like '%Cancel%') 
+then (select sum(sTotalAmount - samountpaid) from trans  where  hperson=t.hmyperson)
+end) as "Amount Owed by Vacates or Evicted"
+
+from tenant_history th
+
+left join tenant t on t.hmyperson=th.htent
+inner join tenstatus ts on ts.istatus = t.istatus
+inner join property p on p.scode = t.sunitcode
+
+where th.sevent='Eviction'
+
+#conditions#
+
+order by t.sunitcode
+
+//end select
+
+
+//Columns
+//Type  Name    Head1   Head2   Head3           Head4                   Show    Color   Formula Drill    Key     Width    Total   
+T,      ,       ,      ,       ,               Unit,                       Y,      ,       ,      3,        ,     1700, 
+T,      ,       ,      ,       ,               Last Name,                  Y,      ,       ,       ,        ,     1700,
+T,      ,       ,      ,       ,               First Name,                 Y,      ,       ,       ,        ,     1700,
+T,      ,       ,      ,       ,               Tenant Status,              Y,      ,       ,       ,        ,     1700,  
+A,      ,       ,      ,       ,               Move In,                    Y,      ,       ,       ,        ,      700,    
+A,      ,       ,      ,       ,               Move Out,                   Y,      ,       ,       ,        ,      750, 
+A,      ,       ,      ,       ,               Latest Status Change Date,  Y,      ,       ,       ,        ,      750,
+T,      ,       ,      ,       ,               Desposition Status,          Y,      ,       ,       ,        ,     1700, 
+D,      ,       ,      ,       ,               Amount Owed by Vacates or Evicted,     Y,      ,       ,       ,        ,     1700, 
+//End Columns
+
+//Filter
+//Type, DataTyp,  Name,       Caption,      Key,                 List,                        Val1,     Val2,   Mandatory, Multi-Type, Title  
+C,       T,       hProp,      Property,        ,                   61,             p.hmy = #hProp#,         ,   N,                   ,        ,
+R,       A,       dtFrom:dtTo,      Date Went to Eviction,        ,                   ,   (select top 1 dtoccurred from tenant_history where htent=t.hmyperson and sevent='Eviction' order by dtoccurred desc)between  #dtFrom# and #dtTo#,         ,   N,                   ,        ,
+//Landscape
+//end filter

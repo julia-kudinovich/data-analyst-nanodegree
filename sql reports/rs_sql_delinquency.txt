@@ -1,0 +1,117 @@
+//Vista
+
+//Notes
+//End Notes
+
+//Database
+//End Database
+
+//Title
+AH4R Delinquency Report 
+//End Title
+
+//Select 
+SELECT  distinct t.sunitcode, a.subgroup12, p.SADDR1, t.SCITY, t.SSTATE, t.SZIPCODE as "Zip Code", t.SLastNAME+' '+t.sfirstNAME as 'Name' , t.scode,
+(CASE t.ISTATUS
+                WHEN 0 THEN 'Current'
+                WHEN 1 THEN 'Past'
+                WHEN 2 THEN 'Future'
+                WHEN 3 THEN 'Eviction'
+                WHEN 4 THEN 'Notice'
+                WHEN 5 THEN 'Vacant'
+                WHEN 6 THEN 'Applicant'
+                WHEN 7 THEN 'Canceled'
+                WHEN 8 THEN 'WaitList'
+                WHEN 9 THEN 'Denied'
+END) as 'Status',
+t.dtmovein,t.dtmoveout, 
+(select sum(sTotalAmount - samountpaid) from trans  where  hperson=t.hmyperson AND itype in (6,7)) as "unpaid",
+
+
+
+(SELECT 
+	sum(CASE 
+		WHEN floor(datediff(day, trx.sDateOccurred ,getdate())/30) <= 0  THEN
+			(CASE trx.iType
+				WHEN 7 THEN trx.sTotalAmount
+			ELSE -de.sAmount 
+
+	    		END)
+    		ELSE 0 
+   
+  	  END) 
+
+FROM TRANS trx LEFT OUTER JOIN detail de ON de.hinvorrec = trx.hmy
+WHERE trx.hperson = t.hmyperson
+
+)as '0 to 30 Days',
+
+
+(SELECT 
+	sum(CASE 
+		WHEN floor(datediff(day, trx.sDateOccurred ,getdate())/30) > 0  THEN
+			(CASE trx.iType
+				WHEN 7 THEN trx.sTotalAmount
+			ELSE -de.sAmount 
+
+	    		END)
+    		ELSE 0 
+   
+  	  END) 
+
+FROM TRANS trx LEFT OUTER JOIN detail de ON de.hinvorrec = trx.hmy
+WHERE trx.hperson = t.hmyperson
+
+)as '30+ Days',
+
+
+
+(select top 1 samountpaid from trans where hperson=t.hMyPerson AND samountpaid IS NOT NULL order by sdateoccurred DESC) as "Last Payment",
+(select top 1 sdateoccurred from trans where hperson=t.hMyPerson order by sdateoccurred DESC) as "Last Payment Date"
+
+FROM TENANT t
+inner join trans tr on t.hmyperson=tr.hperson
+inner join property p on p.scode = t.sunitcode
+inner join attributes a on t.sunitcode=a.scode
+inner join tenstatus ts on ( ts.istatus = t.istatus )
+left outer join detail d ON d.hinvorrec = tr.hmy
+
+
+where
+1=1
+
+#conditions#
+
+order by t.sunitcode
+
+//end select
+
+
+//Columns
+//Type  Name    Head1   Head2   Head3           Head4                   Show    Color   Formula Drill  Key   Width    Total   
+T,      ,       ,      ,       ,               Unit,                   Y,      ,       ,      3,        ,     1700, 
+T,      ,       ,      ,       ,               Market,                 Y,      ,       ,       ,        ,     1700,
+T,      ,       ,      ,       ,               Address,                Y,      ,       ,       ,        ,     1700, 
+T,      ,       ,      ,       ,               City,                   Y,      ,       ,       ,        ,     1700, 
+T,      ,       ,      ,       ,               State,                  Y,      ,       ,       ,        ,     1700, 
+T,      ,       ,      ,       ,               Zip Code,               Y,      ,       ,       ,        ,     1700, 
+T,      ,       ,      ,       ,               Tenant Name,            Y,      ,       ,       ,        ,     1700, 
+T,      ,       ,      ,       ,               Tenant Link,            Y,      ,       ,      1,        ,     1700, 
+T,      ,       ,      ,       ,               Status,                 Y,      ,       ,       ,        ,     1700, 
+A,      ,       ,      ,       ,               Move In,                Y,      ,       ,       ,        ,      700,    
+A,      ,       ,      ,       ,               Move Out,               Y,      ,       ,       ,        ,      750, 
+D,      ,       ,      ,       ,               Amount Owed,            Y,      ,       ,       ,        ,     1700,
+D,      ,       ,      ,    0-30 Days,         Delinquency,            Y,      ,       ,       ,        ,     1700,
+D,      ,       ,      ,    30+ Days,          Delinquency,            Y,      ,       ,       ,        ,     1700,
+D,      ,       ,      , Last Payment,         Amount,                 Y,      ,       ,       ,        ,      750, 
+A,      ,       ,      ,    Last Payment,      Date,                   Y,      ,       ,       ,        ,     1700, 
+//End Columns
+
+//Filter
+//Type, DataTyp,  Name,       Caption,      Key,                                      List,                        Val1,     Val2,   Mandatory,Multi-Type, Title  Title
+C,       T,       hProp,    *Property,         ,                                       61  ,    p.hmy = #hProp#   ,         ,   Y,                 ,        ,
+C,       T,       t.sCode,     Tenant,         ,                                       1  ,  t.hMyPerson = #t.sCode#   ,         ,   N,          1,    Y,
+0,       T,       Status,      Status,       	,select status from tenstatus order by iStatus , ts.status  in ( '#status#' )			,   	,      	,Y      ,Y	,
+0,       D,       owed,   Amount Owed Greater Than,       	,                         , (tr.sTotalAmount - tr.samountpaid) > #owed#		,   	,      	,Y      ,Y	,
+//Landscape
+//end filter
