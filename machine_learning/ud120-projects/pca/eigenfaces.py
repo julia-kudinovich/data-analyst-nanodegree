@@ -144,3 +144,11 @@ eigenface_titles = ["eigenface %d" % i for i in range(eigenfaces.shape[0])]
 plot_gallery(eigenfaces, eigenface_titles, h, w)
 
 pl.show()
+
+
+#Quiz Explained Variance Of Each PC
+
+print pca.explained_variance_ratio_[0], pca.explained_variance_ratio_[1]
+
+#Quiz How Many PCs To Use?
+#
